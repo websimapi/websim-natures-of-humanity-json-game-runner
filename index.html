@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Natures of Humanity — JSON Game Runner</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      :root {
+        --bg: #0f1115;
+        --panel: #161a22;
+        --muted: #8b93a7;
+        --text: #e6e9ef;
+        --accent: #7aa2f7;
+        --accent2: #9ece6a;
+        --warn: #ffad5a;
+        --danger: #f7768e;
+      }
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: radial-gradient(1200px 600px at 10% -20%, #111525, var(--bg));
+        color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+        min-height: 100vh;
+      }
+      header {
+        display: flex; gap: 12px; align-items: center; justify-content: space-between;
+        padding: 18px 16px; border-bottom: 1px solid #222839;
+        position: sticky; top: 0; background: linear-gradient(#10131a, #0f1115);
+        z-index: 2;
+      }
+      header .title {
+        display: flex; align-items: baseline; gap: 12px;
+      }
+      header h1 { font-size: 18px; margin: 0; letter-spacing: 0.3px; }
+      header .subtitle { color: var(--muted); font-size: 12px; }
+      main {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr;
+        gap: 16px;
+        padding: 16px;
+      }
+      @media (max-width: 980px) {
+        main { grid-template-columns: 1fr; }
+      }
+      .panel {
+        background: linear-gradient(180deg, #131722, #111521);
+        border: 1px solid #1f2535;
+        border-radius: 12px;
+        overflow: clip;
+      }
+      .panel h2 {
+        margin: 0; padding: 12px 14px; font-size: 14px; letter-spacing: 0.2px;
+        background: #14192a; border-bottom: 1px solid #1f2535;
+      }
+      .content { padding: 14px; }
+      .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+      .stats, .flags, .reps { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+      .pill { background: #0e1322; border: 1px solid #232a3f; padding: 8px 10px; border-radius: 10px; font-size: 12px; }
+      .log { max-height: 220px; overflow: auto; padding-right: 4px; }
+      .log p { margin: 0 0 8px 0; color: #b7bfd6; font-size: 13px; }
+      .node-text { white-space: pre-wrap; line-height: 1.45; font-size: 15px; }
+      .choices { display: grid; gap: 10px; margin-top: 12px; }
+      button {
+        background: #1a2340; color: #e5ecff;
+        border: 1px solid #2d3a66; border-radius: 10px;
+        padding: 10px 12px; font-size: 14px; cursor: pointer;
+        transition: transform 0.05s ease, background 0.2s ease, border 0.2s ease;
+      }
+      button:hover { background: #1d2a55; }
+      button:active { transform: translateY(1px) scale(0.997); }
+      button.secondary { background: #161b2c; border-color: #283256; color: #cfd7ef; }
+      button.warn { background: #3b2816; border-color: #6a4b20; color: #ffd9a6; }
+      button.danger { background: #3a1e24; border-color: #6a3340; color: #ffd0d9; }
+      .muted { color: var(--muted); }
+      .toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+      textarea, input[type="text"] {
+        width: 100%; background: #0e1220; color: var(--text);
+        border: 1px solid #283256; border-radius: 10px; padding: 10px; font-size: 13px;
+      }
+      code.inline {
+        background: #0e1322; border: 1px solid #232a3f; padding: 2px 6px; border-radius: 6px;
+        font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12px;
+      }
+      .footer { color: var(--muted); font-size: 12px; padding: 14px; text-align: center; }
+      .grid2 { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
+      @media (max-width: 980px) { .grid2 { grid-template-columns: 1fr; } }
+      .small { font-size: 12px; }
+    </style>
+
+    <!-- Import map for a tiny utility (lodash-es). We only use a couple helpers. -->
+    <script type="importmap">
+    {
+      "imports": {
+        "lodash-es": "https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/lodash.js"
+      }
+    }
+    </script>
+  </head>
+  <body>
+    <header>
+      <div class="title">
+        <h1>Natures of Humanity</h1>
+        <span class="subtitle">An expandable JSON-first narrative game</span>
+      </div>
+      <div class="toolbar">
+        <button id="btn-restart" class="secondary">Restart</button>
+        <button id="btn-save" class="secondary">Save</button>
+        <button id="btn-load" class="secondary">Load</button>
+        <button id="btn-export" class="secondary">Export JSON</button>
+        <label class="secondary pill" style="cursor:pointer; padding:6px 10px;">
+          <input id="file-import" type="file" accept="application/json" style="display:none" />
+          Import JSON
+        </label>
+      </div>
+    </header>
+
+    <main>
+      <section class="panel">
+        <h2>Story</h2>
+        <div class="content">
+          <div id="node-title" class="muted small" style="margin-bottom:6px;"></div>
+          <div id="node-text" class="node-text"></div>
+          <div id="choices" class="choices"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Character & World</h2>
+        <div class="content">
+          <div class="grid2">
+            <div>
+              <div class="row" style="justify-content: space-between; margin-bottom:6px;">
+                <strong>Resources</strong>
+                <span class="muted small">health, wealth, time, knowledge, relations</span>
+              </div>
+              <div id="resources" class="stats"></div>
+              <div class="row" style="justify-content: space-between; margin: 10px 0 6px;">
+                <strong>Traits</strong>
+                <span class="muted small">virtues and vices</span>
+              </div>
+              <div id="traits" class="stats"></div>
+            </div>
+            <div>
+              <div class="row" style="justify-content: space-between; margin-bottom:6px;">
+                <strong>Factions</strong>
+                <span class="muted small">your reputation</span>
+              </div>
+              <div id="reps" class="reps"></div>
+              <div class="row" style="justify-content: space-between; margin: 10px 0 6px;">
+                <strong>Flags</strong>
+                <span class="muted small">key life events</span>
+              </div>
+              <div id="flags" class="flags"></div>
+            </div>
+          </div>
+          <div class="row" style="justify-content: space-between; margin-top: 10px;">
+            <span class="muted small">Turn: <span id="turn">0</span></span>
+            <span class="muted small">Node: <code class="inline" id="node-id"></code></span>
+          </div>
+          <hr style="border: none; border-top: 1px solid #1f2535; margin: 12px 0;">
+          <div class="row" style="justify-content: space-between;">
+            <strong>Log</strong>
+            <button id="btn-clear-log" class="secondary small">Clear Log</button>
+          </div>
+          <div id="log" class="log"></div>
+        </div>
+      </section>
+
+      <section class="panel" style="grid-column: 1 / -1;">
+        <h2>AI Modder</h2>
+        <div class="content">
+          <p class="muted small">
+            Give the AI instructions to modify or expand the game.json. The engine will replace its in-memory game with the AI's JSON response.
+            Tip: Ask for specific changes like "Add a late-life travel arc with art-focused dilemmas" or "Introduce a Random Catastrophe system keyed to environment."
+          </p>
+          <textarea id="ai-prompt" rows="4" placeholder="e.g., Add a 'Digital Doppelgänger' storyline exploring identity and privacy."></textarea>
+          <div class="toolbar" style="margin-top: 8px;">
+            <button id="btn-ai-apply">Ask AI to Modify</button>
+            <button id="btn-ai-validate" class="secondary">Dry Run (Validate Only)</button>
+          </div>
+          <p class="muted small" style="margin-top:8px;">
+            This uses the provided websim.chat API. The AI must return valid JSON only that conforms to the schema in the current game.json's 'schema' field.
+          </p>
+          <pre id="ai-status" class="muted small" style="white-space: pre-wrap;"></pre>
+        </div>
+      </section>
+    </main>
+
+    <div class="footer">
+      Built for JSON-first play. The game is the data; the engine is just a reader.
+    </div>
+
+    <script type="module">
+      import { clamp, sample } from "lodash-es";
+
+      // Globals
+      let GAME = null;
+      let STATE = null;
+      let SAVE_KEY = "humanity_game_save_v1";
+      let LOG = [];
+
+      const el = (id) => document.getElementById(id);
+
+      async function loadGameJson() {
+        const res = await fetch("game.json");
+        if (!res.ok) throw new Error("Failed to load game.json");
+        return await res.json();
+      }
+
+      function clone(x){ return JSON.parse(JSON.stringify(x)); }
+
+      function newStateFromGame(game) {
+        const base = clone(game.defaults || {});
+        const state = {
+          turn: 0,
+          node: game.entry || "intro",
+          resources: clone(base.resources || {}),
+          traits: clone(base.traits || {}),
+          reps: clone(base.reps || {}),
+          flags: new Set(base.flags || []),
+          history: [],
+        };
+        return state;
+      }
+
+      function persist() {
+        const save = {
+          GAME,
+          STATE: {
+            ...STATE,
+            flags: Array.from(STATE.flags),
+          },
+          LOG,
+        };
+        localStorage.setItem(SAVE_KEY, JSON.stringify(save));
+      }
+
+      function tryLoad() {
+        const raw = localStorage.getItem(SAVE_KEY);
+        if (!raw) return false;
+        try {
+          const save = JSON.parse(raw);
+          GAME = save.GAME;
+          STATE = save.STATE;
+          STATE.flags = new Set(STATE.flags);
+          LOG = save.LOG || [];
+          renderAll();
+          return true;
+        } catch (e) {
+          console.warn("Failed to load save:", e);
+          return false;
+        }
+      }
+
+      function reset() {
+        STATE = newStateFromGame(GAME);
+        LOG = [];
+        renderAll();
+      }
+
+      function addLog(text) {
+        LOG.push(text);
+        if (LOG.length > 200) LOG.shift();
+        renderLog();
+      }
+
+      function fmtVal(v) {
+        if (typeof v === "number") return v.toFixed(0);
+        return String(v);
+      }
+
+      function renderStats() {
+        const resBox = el("resources");
+        const trBox = el("traits");
+        const rBox = el("reps");
+        const fBox = el("flags");
+
+        const makePill = (k, v) => {
+          const span = document.createElement("div");
+          span.className = "pill";
+          span.textContent = k + ": " + fmtVal(v);
+          return span;
+        };
+
+        resBox.innerHTML = "";
+        for (const k of Object.keys(STATE.resources)) {
+          resBox.appendChild(makePill(k, STATE.resources[k]));
+        }
+
+        trBox.innerHTML = "";
+        for (const k of Object.keys(STATE.traits)) {
+          trBox.appendChild(makePill(k, STATE.traits[k]));
+        }
+
+        rBox.innerHTML = "";
+        for (const k of Object.keys(STATE.reps)) {
+          rBox.appendChild(makePill(k, STATE.reps[k]));
+        }
+
+        fBox.innerHTML = "";
+        Array.from(STATE.flags).sort().forEach(flag => {
+          const d = document.createElement("div");
+          d.className = "pill";
+          d.textContent = flag;
+          fBox.appendChild(d);
+        });
+
+        el("turn").textContent = STATE.turn;
+      }
+
+      function getNode(id) {
+        const node = GAME.nodes[id];
+        if (!node) throw new Error("Missing node: " + id);
+        return node;
+      }
+
+      function renderNode() {
+        const node = getNode(STATE.node);
+        el("node-id").textContent = STATE.node;
+        el("node-title").textContent = node.title || "";
+        el("node-text").textContent = node.text || "";
+        const choicesBox = el("choices");
+        choicesBox.innerHTML = "";
+
+        let available = [];
+        (node.choices || []).forEach(choice => {
+          const ok = evalCondition(choice.condition || null);
+          if (ok) available.push(choice);
+        });
+
+        if (available.length === 0) {
+          const p = document.createElement("p");
+          p.className = "muted";
+          p.textContent = "No choices available. The story pauses here.";
+          choicesBox.appendChild(p);
+          return;
+        }
+
+        for (const choice of available) {
+          const btn = document.createElement("button");
+          btn.textContent = choice.text;
+          if (choice.style === "warn") btn.classList.add("warn");
+          if (choice.style === "danger") btn.classList.add("danger");
+          btn.addEventListener("click", () => {
+            applyEffects(choice.effects || []);
+            // branch
+            let next = choice.goto || null;
+            if (!next && choice.random) {
+              const pool = [];
+              for (const option of choice.random) {
+                const weight = option.weight ?? 1;
+                for (let i = 0; i < weight; i++) pool.push(option.goto);
+              }
+              next = sample(pool);
+            }
+            if (!next) next = STATE.node; // stay
+            // advance time if configured
+            STATE.turn += 1;
+            STATE.history.push({ node: STATE.node, choice: choice.text });
+            STATE.node = next;
+            renderAll();
+          });
+          const hint = renderRequirementHint(choice.condition || null);
+          if (hint) btn.title = hint;
+          choicesBox.appendChild(btn);
+        }
+      }
+
+      function renderLog() {
+        const box = el("log");
+        box.innerHTML = "";
+        LOG.slice(-200).forEach(line => {
+          const p = document.createElement("p");
+          p.textContent = "• " + line;
+          box.appendChild(p);
+        });
+        box.scrollTop = box.scrollHeight;
+      }
+
+      function renderAll() {
+        renderStats();
+        renderNode();
+        renderLog();
+      }
+
+      // Conditions and Effects
+      function get(obj, path, fallback) {
+        return path.split(".").reduce((a, k) => (a && k in a ? a[k] : undefined), obj) ?? fallback;
+      }
+
+      function evalCondition(cond) {
+        if (!cond) return true;
+        // Support composite AND/OR
+        if (cond.any) return cond.any.some(evalCondition);
+        if (cond.all) return cond.all.every(evalCondition);
+        if (cond.not) return !evalCondition(cond.not);
+
+        // primitive checks: resource/trait/rep/flag thresholds
+        switch (cond.type) {
+          case "flag":
+            return STATE.flags.has(cond.key) === (cond.value !== false);
+          case "resource": {
+            const v = get(STATE, "resources." + cond.key, 0);
+            if (cond.min != null && v < cond.min) return false;
+            if (cond.max != null && v > cond.max) return false;
+            return true;
+          }
+          case "trait": {
+            const v = get(STATE, "traits." + cond.key, 0);
+            if (cond.min != null && v < cond.min) return false;
+            if (cond.max != null && v > cond.max) return false;
+            return true;
+          }
+          case "rep": {
+            const v = get(STATE, "reps." + cond.key, 0);
+            if (cond.min != null && v < cond.min) return false;
+            if (cond.max != null && v > cond.max) return false;
+            return true;
+          }
+          case "turn": {
+            const t = STATE.turn;
+            if (cond.min != null && t < cond.min) return false;
+            if (cond.max != null && t > cond.max) return false;
+            return true;
+          }
+          case "chance": {
+            const p = cond.p ?? 0.5;
+            return Math.random() < p;
+          }
+          default:
+            return true;
+        }
+      }
+
+      function renderRequirementHint(cond) {
+        if (!cond) return "";
+        try {
+          const pretty = (c) => {
+            if (c.any) return "any(" + c.any.map(pretty).join(", ") + ")";
+            if (c.all) return "all(" + c.all.map(pretty).join(", ") + ")";
+            if (c.not) return "not(" + pretty(c.not) + ")";
+            switch (c.type) {
+              case "flag": return `flag ${c.key} = ${c.value !== false}`;
+              case "resource": return `resource ${c.key} ${rangeText(c)}`;
+              case "trait": return `trait ${c.key} ${rangeText(c)}`;
+              case "rep": return `rep ${c.key} ${rangeText(c)}`;
+              case "turn": return `turn ${rangeText(c)}`;
+              case "chance": return `chance p=${c.p ?? 0.5}`;
+              default: return "";
+            }
+          };
+          const rangeText = (c) => {
+            const parts = [];
+            if (c.min != null) parts.push(`>= ${c.min}`);
+            if (c.max != null) parts.push(`<= ${c.max}`);
+            return parts.join(" and ");
+          };
+          return pretty(cond);
+        } catch {
+          return "";
+        }
+      }
+
+      function applyEffects(effects) {
+        for (const fx of effects) {
+          switch (fx.type) {
+            case "log":
+              addLog(fx.text || "");
+              break;
+            case "flag":
+              if (fx.op === "set") STATE.flags.add(fx.key);
+              if (fx.op === "clear") STATE.flags.delete(fx.key);
+              break;
+            case "resource":
+              STATE.resources[fx.key] = clamp(
+                (STATE.resources[fx.key] ?? 0) + (fx.delta ?? 0),
+                -9999, 9999
+              );
+              break;
+            case "trait":
+              STATE.traits[fx.key] = clamp(
+                (STATE.traits[fx.key] ?? 0) + (fx.delta ?? 0),
+                -100, 100
+              );
+              break;
+            case "rep":
+              STATE.reps[fx.key] = clamp(
+                (STATE.reps[fx.key] ?? 0) + (fx.delta ?? 0),
+                -100, 100
+              );
+              break;
+            case "goto":
+              STATE.node = fx.id;
+              break;
+            default:
+              console.warn("Unknown effect:", fx);
+          }
+        }
+      }
+
+      // AI Modder
+      async function aiModify(promptText, apply) {
+        const systemPrompt = `
+You are a helpful game designer AI. Modify the input JSON for a narrative choice game about the nature of humanity.
+Rules:
+- Respond with JSON only. No surrounding text.
+- Preserve the existing "schema" contract and required fields.
+- Ensure "entry" exists and all "goto" references point to valid nodes.
+- Keep numbers in safe ranges (-100..100 for traits/reps; 0..9999 for resources).
+- If adding new mechanics, extend "schema.notes" and "schema.examples" accordingly.
+- Keep it playable: each node should have at least one available choice unless it is an ending (node.end === true).
+`;
+        const userContent = [
+          { type: "text", text: "Current game.json follows. Modify according to the user's instruction that follows." },
+          { type: "text", text: JSON.stringify(GAME, null, 2) },
+          { type: "text", text: "User instruction: " + promptText }
+        ];
+
+        const completion = await websim.chat.completions.create({
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userContent },
+          ],
+          json: true,
+        });
+
+        const jsonText = completion.content;
+        el("ai-status").textContent = "AI returned " + jsonText.length + " chars. Validating...";
+        let updated;
+        try {
+          updated = JSON.parse(jsonText);
+        } catch (e) {
+          el("ai-status").textContent = "AI returned invalid JSON: " + e.message;
+          return;
+        }
+
+        const ok = validateGame(updated);
+        if (!ok.valid) {
+          el("ai-status").textContent = "Validation errors:\n- " + ok.errors.join("\n- ");
+          return;
+        }
+
+        if (apply) {
+          GAME = updated;
+          reset();
+          el("ai-status").textContent = "Applied AI changes successfully.";
+        } else {
+          el("ai-status").textContent = "Validation passed. Click 'Ask AI to Modify' to apply.";
+        }
+      }
+
+      function validateGame(game) {
+        const errors = [];
+        if (!game || typeof game !== "object") errors.push("Root must be an object.");
+        if (!game.entry || !game.nodes?.[game.entry]) errors.push("Missing valid 'entry' node.");
+        if (!game.nodes) errors.push("Missing 'nodes'.");
+
+        // Check gotos
+        if (game.nodes) {
+          for (const [id, node] of Object.entries(game.nodes)) {
+            const choices = node.choices || [];
+            for (const ch of choices) {
+              if (ch.goto && !game.nodes[ch.goto]) errors.push(`Node '${id}' has choice with invalid goto '${ch.goto}'.`);
+              if (Array.isArray(ch.random)) {
+                for (const opt of ch.random) {
+                  if (opt.goto && !game.nodes[opt.goto]) errors.push(`Node '${id}' has random goto invalid '${opt.goto}'.`);
+                }
+              }
+            }
+            if ((!choices || choices.length === 0) && !node.end) {
+              errors.push(`Node '${id}' has no choices and is not marked end=true.`);
+            }
+          }
+        }
+
+        // quick sanity ranges
+        const checkRange = (obj, min, max, name) => {
+          for (const [k, v] of Object.entries(obj || {})) {
+            if (typeof v !== "number") continue;
+            if (v < min || v > max) errors.push(`${name} '${k}' out of range: ${v}`);
+          }
+        };
+        checkRange(game.defaults?.traits || {}, -100, 100, "default trait");
+        checkRange(game.defaults?.reps || {}, -100, 100, "default rep");
+        checkRange(game.defaults?.resources || {}, 0, 9999, "default resource");
+
+        if (errors.length) return { valid: false, errors };
+        return { valid: true, errors: [] };
+      }
+
+      // Handlers
+      el("btn-restart").addEventListener("click", () => { reset(); addLog("Restarted."); });
+      el("btn-save").addEventListener("click", () => { persist(); addLog("Saved."); });
+      el("btn-load").addEventListener("click", () => {
+        const ok = tryLoad();
+        addLog(ok ? "Loaded." : "No save found.");
+      });
+      el("btn-clear-log").addEventListener("click", () => { LOG = []; renderLog(); });
+
+      el("btn-export").addEventListener("click", () => {
+        const blob = new Blob([JSON.stringify(GAME, null, 2)], { type: "application/json" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = (GAME.meta?.slug || "game") + ".json";
+        a.click();
+        URL.revokeObjectURL(a.href);
+      });
+
+      el("file-import").addEventListener("change", async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const text = await file.text();
+        try {
+          const json = JSON.parse(text);
+          const ok = validateGame(json);
+          if (!ok.valid) {
+            alert("Invalid game.json:\n- " + ok.errors.join("\n- "));
+            return;
+          }
+          GAME = json; reset();
+          addLog("Imported new game.json");
+        } catch (err) {
+          alert("Failed to parse JSON: " + err.message);
+        }
+        e.target.value = "";
+      });
+
+      el("btn-ai-apply").addEventListener("click", () => aiModify(el("ai-prompt").value.trim(), true));
+      el("btn-ai-validate").addEventListener("click", () => aiModify(el("ai-prompt").value.trim(), false));
+
+      // Boot
+      (async function init() {
+        GAME = await loadGameJson();
+        if (!tryLoad()) reset();
+      })();
+    </script>
+  <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4c6229722a6346bc8eb5cb0e5eae5d41","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
+

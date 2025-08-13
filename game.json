@@ -1,0 +1,693 @@
+{
+  "meta": {
+    "title": "Natures of Humanity",
+    "slug": "natures-of-humanity",
+    "version": "1.0.0",
+    "about": "A JSON-first, AI-extendable narrative choice game exploring the nature of humanity across life stages, values, dilemmas, and societies.",
+    "tags": ["ethics", "emotion", "society", "technology", "mortality", "meaning"],
+    "license": "CC-BY-4.0"
+  },
+  "schema": {
+    "contract": "This file is the game. The engine reads fields below. Keep this structure intact.",
+    "required": ["meta", "schema", "defaults", "entry", "nodes"],
+    "types": {
+      "Game": {
+        "entry": "string: node id to begin at",
+        "defaults": "object with starting resources, traits, reps, flags",
+        "nodes": "map<string, Node>"
+      },
+      "Node": {
+        "title": "string",
+        "text": "string: narrative prose shown to player",
+        "end": "boolean: optional, if true node can have zero choices",
+        "choices": "Choice[]"
+      },
+      "Choice": {
+        "text": "string: label on the button",
+        "style": "string optional: 'warn' | 'danger' | undefined (visual only)",
+        "condition": "Condition optional: gate the choice",
+        "effects": "Effect[]: apply in order",
+        "goto": "string optional: next node id",
+        "random": "optional: array of { goto: string, weight?: number } used if 'goto' not provided"
+      },
+      "Condition": {
+        "any": "Condition[] optional: OR",
+        "all": "Condition[] optional: AND",
+        "not": "Condition optional: NOT",
+        "type": "one of: 'flag' | 'resource' | 'trait' | 'rep' | 'turn' | 'chance'",
+        "key": "string: used by flag/resource/trait/rep",
+        "min": "number optional: min inclusive (for resource/trait/rep/turn)",
+        "max": "number optional: max inclusive (for resource/trait/rep/turn)",
+        "value": "boolean optional for flag",
+        "p": "number 0..1 optional for chance"
+      },
+      "Effect": {
+        "type": "one of: 'log' | 'flag' | 'resource' | 'trait' | 'rep' | 'goto'",
+        "text": "string for log",
+        "op": "string for flag: 'set' or 'clear'",
+        "key": "string for resource/trait/rep/flag",
+        "delta": "number for resource/trait/rep, can be negative",
+        "id": "string for goto"
+      }
+    },
+    "notes": [
+      "Traits and reps range: -100..100. Resources typically 0..9999.",
+      "Use 'end: true' for terminal nodes. Non-terminal nodes should have at least one choice.",
+      "Use 'condition' to gate choices by stats, flags, turn, or chance.",
+      "Use 'random' for stochastic branching when 'goto' is not provided.",
+      "AI modifying this JSON should update 'schema.notes' and 'schema.examples' if new mechanics are introduced."
+    ],
+    "examples": {
+      "gatedChoice": {
+        "text": "Speak kindly",
+        "condition": { "type": "trait", "key": "empathy", "min": 10 },
+        "effects": [
+          { "type": "log", "text": "You choose compassion." },
+          { "type": "rep", "key": "community", "delta": 3 }
+        ],
+        "goto": "nextNodeId"
+      }
+    }
+  },
+  "defaults": {
+    "resources": {
+      "health": 70,
+      "wealth": 10,
+      "time": 100,
+      "knowledge": 5,
+      "relations": 5
+    },
+    "traits": {
+      "empathy": 5,
+      "curiosity": 5,
+      "courage": 0,
+      "prudence": 0,
+      "integrity": 0,
+      "humility": 0,
+      "creativity": 0,
+      "resilience": 0,
+      "awe": 0,
+      "fear": 0,
+      "greed": 0,
+      "envy": 0,
+      "pride": 0,
+      "apathy": 0
+    },
+    "reps": {
+      "progress": 0,
+      "tradition": 0,
+      "earth": 0,
+      "truth": 0,
+      "community": 0
+    },
+    "flags": ["born"]
+  },
+  "entry": "intro",
+  "modules": [
+    {
+      "id": "life_stages",
+      "about": "Childhood to legacy: development of self through choices and constraints."
+    },
+    {
+      "id": "virtues_vices",
+      "about": "Competing drives: empathy vs apathy, courage vs fear, humility vs pride, prudence vs greed."
+    },
+    {
+      "id": "society",
+      "about": "Culture, norms, factions. Tension between progress, tradition, earth, truth, and community."
+    },
+    {
+      "id": "technology",
+      "about": "Tools that extend agency: knowledge, attention, identity, and consequence."
+    },
+    {
+      "id": "mortality_meaning",
+      "about": "Finite horizons; search for purpose; the legacy we leave."
+    }
+  ],
+  "ai_instructions": [
+    "When adding arcs, include 3–6 nodes per arc, each with 2–4 choices.",
+    "When introducing new traits/resources, initialize them in defaults and reference them in at least two nodes.",
+    "Add endings marked end=true with reflective summaries in text.",
+    "Keep prose concise (<=120 words per node)."
+  ],
+  "nodes": {
+    "intro": {
+      "title": "First Breath",
+      "text": "You arrive in a world already mid-sentence. Care givers hover; language is a distant shore. Needs, comfort, and the first sparks of trust shape your early map of humanity.",
+      "choices": [
+        {
+          "text": "Reach toward the face that smiles.",
+          "effects": [
+            { "type": "trait", "key": "empathy", "delta": 1 },
+            { "type": "resource", "key": "relations", "delta": 1 },
+            { "type": "log", "text": "Attachment begins with a gesture." }
+          ],
+          "goto": "child_play"
+        },
+        {
+          "text": "Fixate on the blinking toy.",
+          "effects": [
+            { "type": "trait", "key": "curiosity", "delta": 1 },
+            { "type": "resource", "key": "knowledge", "delta": 1 },
+            { "type": "log", "text": "Attention finds patterns." }
+          ],
+          "goto": "child_play"
+        }
+      ]
+    },
+    "child_play": {
+      "title": "Playground Theories",
+      "text": "Sand, sky, and rules improvised. A push on the swing turns to a question: What is fair when everyone wants a turn?",
+      "choices": [
+        {
+          "text": "Wait your turn and encourage others.",
+          "effects": [
+            { "type": "trait", "key": "prudence", "delta": 1 },
+            { "type": "trait", "key": "empathy", "delta": 1 },
+            { "type": "rep", "key": "community", "delta": 2 },
+            { "type": "log", "text": "You practice fairness." }
+          ],
+          "goto": "child_story"
+        },
+        {
+          "text": "Cut the line—claim the swing.",
+          "style": "danger",
+          "effects": [
+            { "type": "trait", "key": "pride", "delta": 1 },
+            { "type": "trait", "key": "empathy", "delta": -1 },
+            { "type": "rep", "key": "community", "delta": -2 },
+            { "type": "log", "text": "You taste power—and its costs." }
+          ],
+          "goto": "child_story"
+        }
+      ]
+    },
+    "child_story": {
+      "title": "Stories Before Sleep",
+      "text": "Books whisper: monsters can be befriended; heroes can be wrong. You learn that people hold worlds inside.",
+      "choices": [
+        {
+          "text": "Ask endless 'why' questions.",
+          "effects": [
+            { "type": "trait", "key": "curiosity", "delta": 2 },
+            { "type": "resource", "key": "knowledge", "delta": 2 }
+          ],
+          "goto": "adolescence_ask"
+        },
+        {
+          "text": "Comfort a friend scared of the dark.",
+          "effects": [
+            { "type": "trait", "key": "empathy", "delta": 2 },
+            { "type": "resource", "key": "relations", "delta": 2 }
+          ],
+          "goto": "adolescence_ask"
+        }
+      ]
+    },
+    "adolescence_ask": {
+      "title": "Edges and Masks",
+      "text": "Bodies and identities change. Belonging bargains with authenticity.",
+      "choices": [
+        {
+          "text": "Stand up for someone mocked online.",
+          "effects": [
+            { "type": "trait", "key": "courage", "delta": 2 },
+            { "type": "trait", "key": "integrity", "delta": 1 },
+            { "type": "rep", "key": "truth", "delta": 2 },
+            { "type": "resource", "key": "relations", "delta": 1 }
+          ],
+          "goto": "adolescence_tool"
+        },
+        {
+          "text": "Stay silent—protect your image.",
+          "effects": [
+            { "type": "trait", "key": "fear", "delta": 1 },
+            { "type": "trait", "key": "prudence", "delta": 1 },
+            { "type": "rep", "key": "community", "delta": -1 }
+          ],
+          "goto": "adolescence_tool"
+        }
+      ]
+    },
+    "adolescence_tool": {
+      "title": "Tools and Feeds",
+      "text": "Your device knows your touch. Algorithms curate a private world shaped by your past clicks.",
+      "choices": [
+        {
+          "text": "Follow curiosity down a rabbit hole.",
+          "effects": [
+            { "type": "resource", "key": "time", "delta": -5 },
+            { "type": "resource", "key": "knowledge", "delta": 2 },
+            { "type": "trait", "key": "curiosity", "delta": 1 },
+            { "type": "log", "text": "The feed narrows and deepens." }
+          ],
+          "goto": "young_adult_branch"
+        },
+        {
+          "text": "Set limits and go for a walk.",
+          "effects": [
+            { "type": "resource", "key": "time", "delta": 3 },
+            { "type": "resource", "key": "health", "delta": 2 },
+            { "type": "trait", "key": "prudence", "delta": 2 }
+          ],
+          "goto": "young_adult_branch"
+        }
+      ]
+    },
+    "young_adult_branch": {
+      "title": "Choosing Callings",
+      "text": "Study, craft, or care? You start to shape a life that echoes farther than your room.",
+      "choices": [
+        {
+          "text": "Apprentice in community service.",
+          "effects": [
+            { "type": "rep", "key": "community", "delta": 3 },
+            { "type": "trait", "key": "empathy", "delta": 1 },
+            { "type": "resource", "key": "wealth", "delta": 1 }
+          ],
+          "goto": "factions_meet"
+        },
+        {
+          "text": "Join a research lab.",
+          "effects": [
+            { "type": "rep", "key": "truth", "delta": 3 },
+            { "type": "resource", "key": "knowledge", "delta": 4 },
+            { "type": "trait", "key": "creativity", "delta": 1 }
+          ],
+          "goto": "factions_meet"
+        },
+        {
+          "text": "Start a scrappy business.",
+          "effects": [
+            { "type": "resource", "key": "wealth", "delta": 5 },
+            { "type": "trait", "key": "courage", "delta": 1 },
+            { "type": "trait", "key": "greed", "delta": 1 }
+          ],
+          "goto": "factions_meet"
+        }
+      ]
+    },
+    "factions_meet": {
+      "title": "Five Voices in the Square",
+      "text": "Five groups canvas the plaza: Progress, Tradition, Earth, Truth, and Community. Each offers belonging—and a lens.",
+      "choices": [
+        {
+          "text": "Pledge to Progress (innovation first).",
+          "effects": [
+            { "type": "rep", "key": "progress", "delta": 5 },
+            { "type": "trait", "key": "creativity", "delta": 1 }
+          ],
+          "goto": "early_dilemmas"
+        },
+        {
+          "text": "Pledge to Tradition (continuity first).",
+          "effects": [
+            { "type": "rep", "key": "tradition", "delta": 5 },
+            { "type": "trait", "key": "humility", "delta": 1 }
+          ],
+          "goto": "early_dilemmas"
+        },
+        {
+          "text": "Pledge to Earth (stewardship first).",
+          "effects": [
+            { "type": "rep", "key": "earth", "delta": 5 },
+            { "type": "trait", "key": "prudence", "delta": 1 }
+          ],
+          "goto": "early_dilemmas"
+        },
+        {
+          "text": "Pledge to Truth (evidence first).",
+          "effects": [
+            { "type": "rep", "key": "truth", "delta": 5 },
+            { "type": "trait", "key": "integrity", "delta": 1 }
+          ],
+          "goto": "early_dilemmas"
+        },
+        {
+          "text": "Pledge to Community (care first).",
+          "effects": [
+            { "type": "rep", "key": "community", "delta": 5 },
+            { "type": "trait", "key": "empathy", "delta": 1 }
+          ],
+          "goto": "early_dilemmas"
+        }
+      ]
+    },
+    "early_dilemmas": {
+      "title": "Ethics with Deadlines",
+      "text": "A failing bridge serves a small town. Funds could fix it—or seed a startup promising future breakthroughs.",
+      "choices": [
+        {
+          "text": "Fix the bridge now.",
+          "effects": [
+            { "type": "resource", "key": "wealth", "delta": -5 },
+            { "type": "rep", "key": "community", "delta": 4 },
+            { "type": "trait", "key": "empathy", "delta": 1 }
+          ],
+          "goto": "relationship"
+        },
+        {
+          "text": "Invest in the startup.",
+          "effects": [
+            { "type": "resource", "key": "wealth", "delta": -3 },
+            { "type": "rep", "key": "progress", "delta": 4 },
+            { "type": "trait", "key": "prudence", "delta": 1 }
+          ],
+          "goto": "relationship"
+        },
+        {
+          "text": "Study more data before deciding.",
+          "effects": [
+            { "type": "resource", "key": "time", "delta": -5 },
+            { "type": "rep", "key": "truth", "delta": 3 },
+            { "type": "trait", "key": "integrity", "delta": 1 }
+          ],
+          "goto": "relationship"
+        }
+      ]
+    },
+    "relationship": {
+      "title": "Love, Friendship, and Mirrors",
+      "text": "Someone sees you and you see yourself reflected. Bonds reveal strengths and shadows.",
+      "choices": [
+        {
+          "text": "Invest in a deep partnership.",
+          "effects": [
+            { "type": "resource", "key": "relations", "delta": 4 },
+            { "type": "trait", "key": "empathy", "delta": 1 }
+          ],
+          "goto": "work_arc"
+        },
+        {
+          "text": "Keep ties light—protect autonomy.",
+          "effects": [
+            { "type": "resource", "key": "time", "delta": 3 },
+            { "type": "trait", "key": "pride", "delta": 1 }
+          ],
+          "goto": "work_arc"
+        }
+      ]
+    },
+    "work_arc": {
+      "title": "Ambition and Craft",
+      "text": "Your days become practice. Mastery asks for time; bills ask for money; conscience asks for alignment.",
+      "choices": [
+        {
+          "text": "Pursue mastery; accept slower income.",
+          "effects": [
+            { "type": "resource", "key": "time", "delta": -10 },
+            { "type": "resource", "key": "wealth", "delta": 2 },
+            { "type": "trait", "key": "resilience", "delta": 2 }
+          ],
+          "goto": "conflict"
+        },
+        {
+          "text": "Chase promotions; optimize outcomes.",
+          "effects": [
+            { "type": "resource", "key": "wealth", "delta": 6 },
+            { "type": "trait", "key": "prudence", "delta": 1 },
+            { "type": "trait", "key": "greed", "delta": 1 }
+          ],
+          "goto": "conflict"
+        },
+        {
+          "text": "Start something risky and new.",
+          "effects": [
+            { "type": "resource", "key": "wealth", "delta": -4 },
+            { "type": "trait", "key": "courage", "delta": 2 },
+            { "type": "trait", "key": "creativity", "delta": 2 }
+          ],
+          "goto": "conflict"
+        }
+      ]
+    },
+    "conflict": {
+      "title": "Disagreement at Scale",
+      "text": "A heated public issue divides your city. Protestors chant; counter-protestors chant louder.",
+      "choices": [
+        {
+          "text": "Facilitate dialogue across sides.",
+          "effects": [
+            { "type": "trait", "key": "empathy", "delta": 2 },
+            { "type": "rep", "key": "community", "delta": 3 },
+            { "type": "trait", "key": "courage", "delta": 1 }
+          ],
+          "goto": "art_arc"
+        },
+        {
+          "text": "Pick a side and organize.",
+          "effects": [
+            { "type": "trait", "key": "resilience", "delta": 1 },
+            { "type": "rep", "key": "tradition", "delta": 2 }
+          ],
+          "random": [
+            { "goto": "art_arc", "weight": 2 },
+            { "goto": "health_hit", "weight": 1 }
+          ]
+        },
+        {
+          "text": "Withdraw; focus on personal life.",
+          "effects": [
+            { "type": "trait", "key": "apathy", "delta": 2 },
+            { "type": "resource", "key": "time", "delta": 5 }
+          ],
+          "goto": "art_arc"
+        }
+      ]
+    },
+    "health_hit": {
+      "title": "Cost of Strife",
+      "text": "Stress and a minor injury remind you: bodies tally choices.",
+      "choices": [
+        {
+          "text": "Rest and heal.",
+          "effects": [
+            { "type": "resource", "key": "health", "delta": 5 },
+            { "type": "resource", "key": "time", "delta": -3 }
+          ],
+          "goto": "art_arc"
+        },
+        {
+          "text": "Push through the pain.",
+          "style": "warn",
+          "effects": [
+            { "type": "resource", "key": "health", "delta": -5 },
+            { "type": "trait", "key": "resilience", "delta": 1 }
+          ],
+          "goto": "art_arc"
+        }
+      ]
+    },
+    "art_arc": {
+      "title": "Making Meaning",
+      "text": "You create: a poem, a garden, an algorithm, a meal. Art names the unnamed.",
+      "choices": [
+        {
+          "text": "Share your work publicly.",
+          "effects": [
+            { "type": "trait", "key": "courage", "delta": 1 },
+            { "type": "resource", "key": "relations", "delta": 2 },
+            { "type": "rep", "key": "community", "delta": 1 }
+          ],
+          "goto": "midlife"
+        },
+        {
+          "text": "Keep it private; it's for you.",
+          "effects": [
+            { "type": "trait", "key": "humility", "delta": 1 },
+            { "type": "resource", "key": "time", "delta": 2 }
+          ],
+          "goto": "midlife"
+        }
+      ]
+    },
+    "midlife": {
+      "title": "The Curve Bends",
+      "text": "What you have built hums on. New questions appear: Is this success? What remains unlived?",
+      "choices": [
+        {
+          "text": "Mentor someone starting out.",
+          "effects": [
+            { "type": "trait", "key": "empathy", "delta": 2 },
+            { "type": "resource", "key": "relations", "delta": 3 },
+            { "type": "flag", "op": "set", "key": "mentor" }
+          ],
+          "goto": "care_arc"
+        },
+        {
+          "text": "Pivot careers; embrace beginner mind.",
+          "effects": [
+            { "type": "trait", "key": "curiosity", "delta": 2 },
+            { "type": "resource", "key": "wealth", "delta": -3 },
+            { "type": "resource", "key": "knowledge", "delta": 3 }
+          ],
+          "goto": "care_arc"
+        },
+        {
+          "text": "Double down; maximize returns.",
+          "effects": [
+            { "type": "resource", "key": "wealth", "delta": 6 },
+            { "type": "trait", "key": "prudence", "delta": 1 },
+            { "type": "trait", "key": "greed", "delta": 1 }
+          ],
+          "goto": "care_arc"
+        }
+      ]
+    },
+    "care_arc": {
+      "title": "Care Scales",
+      "text": "A parent ages. A neighbor needs help. The planet asks, too. How wide is your circle of concern?",
+      "choices": [
+        {
+          "text": "Care for family intensively.",
+          "effects": [
+            { "type": "resource", "key": "time", "delta": -8 },
+            { "type": "resource", "key": "relations", "delta": 3 },
+            { "type": "trait", "key": "empathy", "delta": 2 }
+          ],
+          "goto": "mortality"
+        },
+        {
+          "text": "Organize community support.",
+          "effects": [
+            { "type": "rep", "key": "community", "delta": 4 },
+            { "type": "trait", "key": "integrity", "delta": 1 }
+          ],
+          "goto": "mortality"
+        },
+        {
+          "text": "Donate funds; hire help.",
+          "effects": [
+            { "type": "resource", "key": "wealth", "delta": -5 },
+            { "type": "trait", "key": "prudence", "delta": 1 }
+          ],
+          "goto": "mortality"
+        }
+      ]
+    },
+    "mortality": {
+      "title": "A Finite Horizon",
+      "text": "A diagnosis—yours or someone close—clarifies the clock. Fear and awe sit together.",
+      "choices": [
+        {
+          "text": "Seek new experiences while you can.",
+          "effects": [
+            { "type": "resource", "key": "time", "delta": -10 },
+            { "type": "trait", "key": "awe", "delta": 2 },
+            { "type": "resource", "key": "health", "delta": -3 }
+          ],
+          "goto": "legacy"
+        },
+        {
+          "text": "Write, forgive, and reconcile.",
+          "effects": [
+            { "type": "resource", "key": "relations", "delta": 4 },
+            { "type": "trait", "key": "humility", "delta": 2 },
+            { "type": "trait", "key": "integrity", "delta": 1 }
+          ],
+          "goto": "legacy"
+        },
+        {
+          "text": "Fight it with all available means.",
+          "effects": [
+            { "type": "resource", "key": "wealth", "delta": -8 },
+            { "type": "resource", "key": "health", "delta": 4 },
+            { "type": "trait", "key": "resilience", "delta": 2 }
+          ],
+          "goto": "legacy"
+        }
+      ]
+    },
+    "legacy": {
+      "title": "What Remains",
+      "text": "What you tended persists in others and in the world. You take stock.",
+      "choices": [
+        {
+          "text": "Plant a long-view project for Earth.",
+          "condition": { "type": "rep", "key": "earth", "min": -100 },
+          "effects": [
+            { "type": "rep", "key": "earth", "delta": 3 },
+            { "type": "trait", "key": "prudence", "delta": 1 }
+          ],
+          "goto": "ending_assess"
+        },
+        {
+          "text": "Endow a scholarship for Truth.",
+          "effects": [
+            { "type": "rep", "key": "truth", "delta": 3 },
+            { "type": "resource", "key": "wealth", "delta": -5 }
+          ],
+          "goto": "ending_assess"
+        },
+        {
+          "text": "Host a gathering for Community.",
+          "effects": [
+            { "type": "rep", "key": "community", "delta": 4 },
+            { "type": "resource", "key": "relations", "delta": 3 }
+          ],
+          "goto": "ending_assess"
+        },
+        {
+          "text": "Publish your craft and process for Progress.",
+          "effects": [
+            { "type": "rep", "key": "progress", "delta": 3 },
+            { "type": "trait", "key": "creativity", "delta": 1 }
+          ],
+          "goto": "ending_assess"
+        },
+        {
+          "text": "Record family stories for Tradition.",
+          "effects": [
+            { "type": "rep", "key": "tradition", "delta": 3 },
+            { "type": "trait", "key": "humility", "delta": 1 }
+          ],
+          "goto": "ending_assess"
+        }
+      ]
+    },
+    "ending_assess": {
+      "title": "Measure Without Numbers",
+      "text": "Totals are imperfect, but patterns emerge. Which values did your life amplify?",
+      "choices": [
+        {
+          "text": "Face the sum of your choices.",
+          "effects": [
+            { "type": "log", "text": "You weigh empathy against apathy, courage against fear, integrity against convenience." }
+          ],
+          "random": [
+            { "goto": "ending_compassion", "weight": 2 },
+            { "goto": "ending_progress", "weight": 1 },
+            { "goto": "ending_truth", "weight": 1 },
+            { "goto": "ending_balance", "weight": 2 }
+          ]
+        }
+      ]
+    },
+    "ending_compassion": {
+      "title": "A Wider Circle",
+      "text": "Your kindness became contagious. People you helped now help others. Humanity, to you, was a verb.",
+      "end": true,
+      "choices": []
+    },
+    "ending_progress": {
+      "title": "Futures Unlocked",
+      "text": "You bet on new tools and they changed many lives. The costs were real; so were the possibilities.",
+      "end": true,
+      "choices": []
+    },
+    "ending_truth": {
+      "title": "Honest Light",
+      "text": "You insisted on reality, even when it hurt. Others now see farther because you cleared the fog.",
+      "end": true,
+      "choices": []
+    },
+    "ending_balance": {
+      "title": "Dynamic Equilibrium",
+      "text": "You learned to hold paradox without breaking. In your wake are bridges—between people, ideas, and times.",
+      "end": true,
+      "choices": []
+    }
+  }
+}
+
